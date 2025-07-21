@@ -25,7 +25,7 @@ const Navbar = () => {
 
     // Load correct profile from localStorage
     const storedProfile = JSON.parse(localStorage.getItem(isAdminPortal ? "adminProfile" : "userProfile"));
-    
+
     if (storedProfile) {
       setProfile({
         name: storedProfile.name || "User",
@@ -45,7 +45,7 @@ const Navbar = () => {
         setTaskListOpen(false);
       }
     }
-    
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
@@ -182,23 +182,24 @@ const Navbar = () => {
 
       {/* Show login/signup buttons when not authenticated */}
       {!isAuthenticated && (
-        <div className="flex items-center gap-4">
-          <Link
-            to="/login"
-            className="bg-white text-blue-600 font-medium px-4 py-2 rounded-lg shadow-md 
-                     hover:bg-blue-700 hover:text-white transition-all focus:outline-none"
-          >
-            Login
-          </Link>
-          <Link
-            to="/signup"
-            className="bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-md 
-                     hover:bg-blue-800 transition-all focus:outline-none"
-          >
-            Sign Up
-          </Link>
-        </div>
-      )}
+        ["user", "admin"].map((role) => {
+          return (
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate("/signup", { state: { role } })}
+                className="w-full py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-md shadow-md hover:opacity-90 transition"
+              >
+                Sign Up as {role.charAt(0).toUpperCase() + role.slice(1)}
+              </button>
+              <button
+                onClick={() => navigate("/login", { state: { role } })}
+                className="w-full py-2 border border-gray-400 text-gray-800 font-semibold rounded-md shadow-md hover:bg-gray-200 transition"
+              >
+                Log In as {role.charAt(0).toUpperCase() + role.slice(1)}
+              </button>
+            </div>
+          );
+        }))}
     </nav>
   );
 };
