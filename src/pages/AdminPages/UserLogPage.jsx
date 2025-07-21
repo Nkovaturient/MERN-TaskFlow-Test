@@ -17,7 +17,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { FaTrash, FaSpinner, FaExclamationTriangle, FaUserShield, FaSort, FaFilter } from 'react-icons/fa';
+import { FaTrash, FaSpinner, FaExclamationTriangle, FaUserShield, FaSort, FaFilter, FaSignInAlt, FaSignOutAlt } from 'react-icons/fa';
+import Sidebar from '../../components/admin/Sidebar';
 
 const UserLogPage = () => {
   // State management with proper initialization
@@ -31,6 +32,7 @@ const UserLogPage = () => {
   });
   const [filters, setFilters] = useState({
     role: 'all',
+    action: 'all',
     search: ''
   });
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -151,13 +153,18 @@ const UserLogPage = () => {
       result = result.filter(log => log.role === newFilters.role);
     }
     
+    // Apply action filter
+    if (newFilters.action !== 'all') {
+      result = result.filter(log => log.action === newFilters.action);
+    }
+    
     // Apply search filter
     if (newFilters.search.trim()) {
       const searchTerm = newFilters.search.toLowerCase().trim();
       result = result.filter(log => 
-        log.username.toLowerCase().includes(searchTerm) || 
+        log.username.toLowerCase().includes(searchTerm) ||
         log.userId.toLowerCase().includes(searchTerm) ||
-        (log.ipAddress && log.ipAddress.includes(searchTerm))
+        log.ipAddress.toLowerCase().includes(searchTerm)
       );
     }
     
@@ -192,6 +199,39 @@ const UserLogPage = () => {
     
     setFilters(newFilters);
     applyFilters(newFilters);
+  };
+
+  /**
+   * Get action icon and color
+   * 
+   * @param {string} action - Action type
+   * @returns {Object} Icon and color classes
+   */
+  const getActionDisplay = (action) => {
+    if (action === 'login') {
+      return {
+        icon: <FaSignInAlt className="text-green-500" />,
+        text: 'Login',
+        bgColor: 'bg-green-100 text-green-800'
+      };
+    } else if (action === 'logout') {
+      return {
+        icon: <FaSignOutAlt className="text-red-500" />,
+        text: 'Logout',
+        bgColor: 'bg-red-100 text-red-800'
+      };
+    } else if (action === 'signup') {
+      return {
+        icon: <FaUserShield className="text-blue-500" />,
+        text: 'Signup',
+        bgColor: 'bg-blue-100 text-blue-800'
+      };
+    }
+    return {
+      icon: <FaUserShield className="text-gray-500" />,
+      text: action,
+      bgColor: 'bg-gray-100 text-gray-800'
+    };
   };
 
   /**
@@ -265,7 +305,9 @@ const UserLogPage = () => {
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
+    <div className="flex min-h-screen bg-gray-100">
+    <Sidebar />
+    <div className=" flex-1 bg-white p-6 rounded-lg shadow">
       <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center">
         <FaUserShield className="mr-2" aria-hidden="true" />
         User Activity Logs
@@ -303,6 +345,25 @@ const UserLogPage = () => {
             <option value="all">All Roles</option>
             <option value="admin">Admin</option>
             <option value="user">User</option>
+          </select>
+        </div>
+
+        {/* Action filter */}
+        <div className="md:w-48">
+          <label htmlFor="action-filter" className="block text-sm font-medium text-gray-700 mb-1">
+            Filter by Action
+          </label>
+          <select
+            id="action-filter"
+            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            value={filters.action}
+            onChange={(e) => handleFilterChange('action', e.target.value)}
+            aria-label="Filter logs by action"
+          >
+            <option value="all">All Actions</option>
+            <option value="login">Login</option>
+            <option value="logout">Logout</option>
+            <option value="signup">Signup</option>
           </select>
         </div>
       </div>
@@ -446,6 +507,7 @@ const UserLogPage = () => {
           </tbody>
         </table>
       </div>
+    </div>
     </div>
   );
 };

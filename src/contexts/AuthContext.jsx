@@ -99,9 +99,13 @@ const AuthProvider = ({ children }) => {
       });
 
       if (response.data.token) {
+        // Generate a unique userId if not provided
+        const userId = response.data.userId || `user-${Date.now()}`;
+        
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("email", email);
         localStorage.setItem("userRole", response.data.role);
+        localStorage.setItem("userId", userId);
         setUser({ email });
         return { email };
       }
@@ -131,9 +135,13 @@ const AuthProvider = ({ children }) => {
       });
 
       if (response.data.token) {
+        // Generate a unique userId if not provided
+        const userId = response.data.userId || `user-${Date.now()}`;
+        
         localStorage.setItem("token", response.data.token);
         localStorage.setItem("email", email);
         localStorage.setItem("userRole", role);
+        localStorage.setItem("userId", userId);
         setUser({ email });
         return { email };
       }
@@ -149,10 +157,39 @@ const AuthProvider = ({ children }) => {
    * Clears authentication data but keeps userRole for dashboard panel display
    */
   const handleLogout = () => {
-    // Clear all auth-related data from localStorage
+    // Get user info before clearing
+    const email = localStorage.getItem("email");
+    const userRole = localStorage.getItem("userRole");
+    const userId = localStorage.getItem("userId");
+    const token = localStorage.getItem("token");
+    
+    // Create logout log entry
+    if (email && userRole) {
+      const logData = {
+        id: `logout-${Date.now()}`,
+        userId: userId || "unknown",
+        username: email,
+        role: userRole,
+        action: "logout",
+        loginTime: null,
+        logoutTime: new Date().toISOString(),
+        ipAddress: "127.0.0.1", // In production, this would be captured from the request
+        tokenName: token ? token.substring(0, 10) + "..." : "unknown"
+      };
+      
+      // Store logout logs in localStorage for admin view
+      const existingLogs = JSON.parse(localStorage.getItem('userLogs') || '[]');
+      existingLogs.push(logData);
+      localStorage.setItem('userLogs', JSON.stringify(existingLogs));
+      
+      console.log("User logout logged:", logData);
+    }
+    
+    // Clear authentication data from localStorage but keep userRole
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
     localStorage.removeItem("email");
+    // Note: userRole is kept for dashboard panel display
     
     // Reset user state
     setUser(null);
