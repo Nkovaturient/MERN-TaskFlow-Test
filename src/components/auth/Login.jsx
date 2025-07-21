@@ -2,11 +2,11 @@
  * Login Component
  * 
  * A comprehensive authentication component that handles user login with proper
- * validation, error handling, and state management. Implements localStorage-based
- * authentication for persistent user sessions across browser refreshes.
+ * validation, error handling, and state management. Implements JWT-based
+ * authentication with backend API integration.
  * 
  * Features:
- * - Supports both default and custom user accounts
+ * - Backend API integration for secure authentication
  * - Persists authentication state across browser sessions
  * - Provides clear error feedback and loading states
  * - Implements role-based redirection
@@ -25,11 +25,10 @@ const Login = () => {
   // State management with proper initialization
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   
   // Hooks initialization
-  const { login } = useAuth();
+  const { login, error, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -42,16 +41,15 @@ const Login = () => {
    * Redirects authenticated users to appropriate dashboard
    */
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
+    if (isAuthenticated) {
       const userRole = localStorage.getItem("userRole");
       navigate(userRole === "admin" ? "/admin/dashboard" : "/user/dashboard");
     }
-  }, [navigate]);
+  }, [isAuthenticated, navigate]);
 
   /**
    * Handles form submission and authentication
-   * Implements localStorage-based authentication with support for custom users
+   * Implements backend API authentication with JWT tokens
    * 
    * @param {Event} e - The form submission event
    */
@@ -60,67 +58,38 @@ const Login = () => {
     
     // Input validation
     if (!email.trim() || !password.trim()) {
-      setError("Email and password are required");
-      return;
+      return; // Error will be handled by the auth context
     }
     
-    // Reset previous errors
-    setError("");
     setLoading(true);
     
     try {
-      // Simulate network latency for realistic UX
-      await new Promise(resolve => setTimeout(resolve, 800));
+      // Call the login function from AuthContext
+      await login(email, password);
       
-      // Get stored users from localStorage or initialize with default users
-      const storedUsers = JSON.parse(localStorage.getItem('users') || JSON.stringify([
-        { email: 'admin@example.com', password: 'password123', role: 'admin', userId: 'admin-123' },
-        { email: 'user@example.com', password: 'password123', role: 'user', userId: 'user-456' }
-      ]));
+      // Create log entry for admin tracking
+      const logData = {
+        userId: localStorage.getItem("userId") || "unknown",
+        username: email,
+        role: localStorage.getItem("userRole") || "user",
+        action: "login",
+        loginTime: new Date().toISOString(),
+        ipAddress: "127.0.0.1", // In production, this would be captured from the request
+        tokenName: localStorage.getItem("token")?.substring(0, 10) + "..." || "unknown"
+      };
       
-      // Find matching user
-      const user = storedUsers.find(u => u.email === email && u.password === password);
+      // Store login logs in localStorage for admin view
+      const existingLogs = JSON.parse(localStorage.getItem('userLogs') || '[]');
+      existingLogs.push(logData);
+      localStorage.setItem('userLogs', JSON.stringify(existingLogs));
       
-      if (user) {
-        // User found, proceed with login
-        const mockToken = `mock-token-${Date.now()}`;
-        
-        // Store authentication data in localStorage for persistence
-        localStorage.setItem("token", mockToken);
-        localStorage.setItem("userRole", user.role);
-        localStorage.setItem("userId", user.userId);
-        localStorage.setItem("email", email);
-        
-        // Create log entry for admin tracking
-        const logData = {
-          userId: user.userId,
-          username: email,
-          role: user.role,
-          action: "login",
-          loginTime: new Date().toISOString(),
-          ipAddress: "127.0.0.1", // In production, this would be captured from the request
-          tokenName: mockToken.substring(0, 10) + "..." // Truncated for security
-        };
-        
-        // Store login logs in localStorage for admin view
-        const existingLogs = JSON.parse(localStorage.getItem('userLogs') || '[]');
-        existingLogs.push(logData);
-        localStorage.setItem('userLogs', JSON.stringify(existingLogs));
-        
-        console.log("User login:", logData);
-        
-        // Update authentication context
-        login(email);
-        
-        // Navigate to appropriate dashboard or requested page
-        navigate(from !== "/" ? from : (user.role === "admin" ? "/admin/dashboard" : "/user/dashboard"));
-      } else {
-        // Invalid credentials
-        setError("Invalid email or password");
-      }
+      console.log("User login:", logData);
+      
+      // Navigate to landing page after successful login
+      navigate("/landing");
+      
     } catch (err) {
       console.error("Login error:", err);
-      setError("An unexpected error occurred. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -211,21 +180,20 @@ const Login = () => {
         </form>
 
         {/* Additional links */}
-        <div className="text-center mt-4 space-y-2">
-          <div>
-            <span
-              className="text-blue-600 text-sm hover:underline cursor-pointer"
-              onClick={() => navigate("/forgot-password", { state: { role } })}
-            >
-              Forgot Password?
-            </span>
-          </div>
-          <div>
-            <span className="text-gray-600 text-sm">Don't have an account? </span>
+        <div className="mt-6 text-center space-y-2">
+          <Link
+            to="/forgot-password"
+            state={{role}}
+            className="text-blue-600 hover:text-blue-800 text-sm transition-colors"
+          >
+            Forgot Password?
+          </Link>
+          <div className="text-gray-600 text-sm">
+            Don't have an account?{" "}
             <Link
               to="/signup"
-              state={{ role }}
-              className="text-blue-600 text-sm hover:underline"
+              state={{role}}
+              className="text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               Sign up
             </Link>

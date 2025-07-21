@@ -2,14 +2,14 @@
  * Signup Component
  * 
  * A comprehensive user registration component with validation, error handling,
- * and localStorage-based user management. Supports creating both admin and regular
- * user accounts with persistent storage across browser sessions.
+ * and backend API integration. Supports creating both admin and regular
+ * user accounts with JWT-based authentication.
  * 
  * Features:
  * - Form validation with clear error feedback
  * - Password strength and matching validation
  * - Role-based account creation
- * - Persistent user storage in localStorage
+ * - Backend API integration for secure registration
  * - Automatic login after successful registration
  * 
  * @author Senior Full-Stack Engineer
@@ -29,7 +29,6 @@ const Signup = () => {
     password: "",
     confirmPassword: "",
   });
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState({
     score: 0,
@@ -38,7 +37,7 @@ const Signup = () => {
   });
   
   // Hooks initialization
-  const { signup } = useAuth();
+  const { signup, error, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -50,12 +49,11 @@ const Signup = () => {
    * Redirects authenticated users to appropriate dashboard
    */
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
+    if (isAuthenticated) {
       const userRole = localStorage.getItem("userRole");
       navigate(userRole === "admin" ? "/admin/dashboard" : "/user/dashboard");
     }
-  }, [navigate]);
+  }, [isAuthenticated, navigate]);
 
   /**
    * Handles form input changes and updates state
@@ -98,16 +96,20 @@ const Signup = () => {
     
     // Complexity checks
     if (/[A-Z]/.test(password)) score += 1;
+    if (/[a-z]/.test(password)) score += 1;
     if (/[0-9]/.test(password)) score += 1;
     if (/[^A-Za-z0-9]/.test(password)) score += 1;
     
-    // Determine message and color based on score
-    if (score < 2) {
+    // Determine strength level
+    if (score <= 2) {
       message = "Weak";
       color = "red";
-    } else if (score < 4) {
-      message = "Moderate";
+    } else if (score <= 4) {
+      message = "Fair";
       color = "yellow";
+    } else if (score <= 6) {
+      message = "Good";
+      color = "blue";
     } else {
       message = "Strong";
       color = "green";
@@ -118,115 +120,55 @@ const Signup = () => {
 
   /**
    * Handles form submission and user registration
-   * Implements localStorage-based user management
+   * Implements backend API registration with JWT tokens
    * 
-   * @param {Event} e - Form submission event
+   * @param {Event} e - The form submission event
    */
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Reset error
-    setError("");
-    
-    // Validate form inputs
-    if (!formData.fullName.trim()) {
-      setError("Full name is required");
-      return;
+    // Form validation
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.password.trim()) {
+      return; // Error will be handled by the auth context
     }
     
-    if (!formData.email.trim()) {
-      setError("Email is required");
-      return;
-    }
-    
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setError("Please enter a valid email address");
-      return;
-    }
-    
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
-      return;
+      return; // Error will be handled by the auth context
     }
     
-    // Validate password strength
     if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
+      return; // Error will be handled by the auth context
     }
     
     setLoading(true);
     
     try {
-      // Simulate network latency for realistic UX
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Get existing users from localStorage or initialize with default users
-      const storedUsers = JSON.parse(localStorage.getItem('users') || JSON.stringify([
-        { email: 'admin@example.com', password: 'password123', role: 'admin', userId: 'admin-123' },
-        { email: 'user@example.com', password: 'password123', role: 'user', userId: 'user-456' }
-      ]));
-      
-      // Check if email already exists
-      if (storedUsers.some(user => user.email === formData.email)) {
-        setError("Email already in use");
-        setLoading(false);
-        return;
-      }
-      
-      // Create new user object
-      const newUser = {
-        email: formData.email,
-        password: formData.password,
-        role: role,
-        userId: `user-${Date.now()}`,
-        fullName: formData.fullName,
-        createdAt: new Date().toISOString()
-      };
-      
-      // Add to stored users
-      storedUsers.push(newUser);
-      localStorage.setItem('users', JSON.stringify(storedUsers));
-      
-      // Generate authentication token
-      const mockToken = `mock-token-${Date.now()}`;
-      
-      // Store authentication data for automatic login
-      localStorage.setItem("token", mockToken);
-      localStorage.setItem("userRole", newUser.role);
-      localStorage.setItem("userId", newUser.userId);
-      localStorage.setItem("email", newUser.email);
+      // Call the signup function from AuthContext
+      await signup(formData.fullName, formData.email, formData.password, role);
       
       // Create log entry for admin tracking
       const logData = {
-        userId: newUser.userId,
-        username: newUser.email,
-        fullName: newUser.fullName,
-        role: newUser.role,
-        action: "register",
+        userId: localStorage.getItem("userId") || "unknown",
+        username: formData.email,
+        role: role,
+        action: "signup",
         loginTime: new Date().toISOString(),
         ipAddress: "127.0.0.1", // In production, this would be captured from the request
-        tokenName: mockToken.substring(0, 10) + "..." // Truncated for security
+        tokenName: localStorage.getItem("token")?.substring(0, 10) + "..." || "unknown"
       };
       
-      // Store registration log
+      // Store signup logs in localStorage for admin view
       const existingLogs = JSON.parse(localStorage.getItem('userLogs') || '[]');
       existingLogs.push(logData);
       localStorage.setItem('userLogs', JSON.stringify(existingLogs));
       
       console.log("User registration:", logData);
       
-      // Call the context signup method
-      signup(formData.email, formData.password);
+      // Navigate to landing page after successful registration
+      navigate("/landing");
       
-      // Navigate to the appropriate dashboard
-      navigate(newUser.role === "admin" ? "/admin/dashboard" : "/user/dashboard");
     } catch (err) {
-      console.error("Registration error:", err);
-      setError("Failed to create an account. Please try again.");
+      console.error("Signup error:", err);
     } finally {
       setLoading(false);
     }

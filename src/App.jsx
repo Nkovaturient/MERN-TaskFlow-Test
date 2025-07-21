@@ -86,6 +86,22 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 };
 
 /**
+ * Landing Route Component
+ * 
+ * Handles the landing page routing - redirects unauthenticated users to login,
+ * shows landing page only to authenticated users.
+ */
+const LandingRoute = () => {
+  const { isAuthenticated } = useAuth();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <Landing />;
+};
+
+/**
  * Main App Component
  * 
  * Defines the application's routing structure and wraps the app with necessary providers.
@@ -100,12 +116,31 @@ function App() {
             
             <main className="flex-grow">
               <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Landing />} />
+                {/* Default route - redirect to login if not authenticated */}
+                <Route 
+                  path="/" 
+                  element={
+                    <ProtectedRoute>
+                      <Landing />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                {/* Auth pages - accessible to everyone */}
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                
+                {/* Landing page - only accessible after authentication */}
+                <Route 
+                  path="/landing" 
+                  element={
+                    <ProtectedRoute>
+                      <Landing />
+                    </ProtectedRoute>
+                  } 
+                />
                 
                 {/* Protected Admin Routes */}
                 <Route 
@@ -215,8 +250,15 @@ function App() {
                   } 
                 />
                 
-                {/* Fallback Route - Redirect to landing page */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                {/* Fallback Route - Redirect to login if not authenticated, otherwise to appropriate dashboard */}
+                <Route 
+                  path="*" 
+                  element={
+                    <ProtectedRoute>
+                      <Navigate to="/user/dashboard" replace />
+                    </ProtectedRoute>
+                  } 
+                />
               </Routes>
             </main>
             

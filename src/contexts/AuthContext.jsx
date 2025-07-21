@@ -15,6 +15,7 @@
  */
 
 import React, { createContext, useState, useContext, useEffect } from "react";
+import axios from "axios";
 
 // Create the authentication context
 const AuthContext = createContext();
@@ -47,6 +48,8 @@ const AuthProvider = ({ children }) => {
   });
   
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const BACKEND_URL = "http://localhost:5000";
 
   /**
    * Effect to check token validity on mount
@@ -84,45 +87,79 @@ const AuthProvider = ({ children }) => {
   /**
    * Handles user login
    * @param {string} email - User's email
-   * @param {string} password - User's password (not used in mock implementation)
+   * @param {string} password - User's password
    * @returns {Promise<Object>} User data
    */
   const login = async (email, password) => {
-    // In a real app, this would make an API call
-    // For this demo, we just update the state
-    setUser({ email });
-    return { email };
+    try {
+      setError(null);
+      const response = await axios.post(`${BACKEND_URL}/api/auth/login`, {
+        email: email,
+        password: password,
+      });
+
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("email", email);
+        localStorage.setItem("userRole", response.data.role);
+        setUser({ email });
+        return { email };
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setError("Failed to login. Please check your credentials.");
+      throw error;
+    }
   };
 
   /**
    * Handles user signup
+   * @param {string} fullName - User's full name
    * @param {string} email - User's email
    * @param {string} password - User's password
+   * @param {string} role - User's role
    * @returns {Promise<Object>} User data
    */
-  const signup = async (email, password) => {
-    // In a real app, this would make an API call
-    // For this demo, we just update the state
-    setUser({ email });
-    return { email };
+  const signup = async (fullName, email, password, role) => {
+    try {
+      setError(null);
+      const response = await axios.post(`${BACKEND_URL}/api/auth/register`, {
+        fullName: fullName,
+        email: email,
+        password: password,
+        role: role,
+      });
+
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("email", email);
+        localStorage.setItem("userRole", role);
+        setUser({ email });
+        return { email };
+      }
+    } catch (error) {
+      console.error("Registration error:", error);
+      setError("Failed to create an account. Please try again.");
+      throw error;
+    }
   };
 
   /**
    * Handles user logout
-   * Clears authentication data and resets state
+   * Clears authentication data but keeps userRole for dashboard panel display
    */
   const handleLogout = () => {
     // Clear all auth-related data from localStorage
     localStorage.removeItem("token");
-    localStorage.removeItem("userRole");
     localStorage.removeItem("userId");
     localStorage.removeItem("email");
     
     // Reset user state
     setUser(null);
+    setError(null);
     
     // In a real app, we might also invalidate the token on the server
-    console.log("User logged out");
+    console.log("User logged out - dashboard panel mode activated");
   };
 
   /**
@@ -152,13 +189,18 @@ const AuthProvider = ({ children }) => {
   const value = {
     user,
     loading,
+    error,
     login,
     signup,
     logout: handleLogout,
     resetPassword,
     hasRole,
     isAdmin: () => hasRole("admin"),
-    isAuthenticated: !!user,
+    isAuthenticated: !!user || !!localStorage.getItem("token"),
+    // Check if user is in dashboard panel mode (logged out but has role)
+    isDashboardPanelMode: !!(localStorage.getItem("userRole") && !localStorage.getItem("token")),
+    // Get current user role for dashboard panel
+    currentUserRole: localStorage.getItem("userRole") || null,
   };
 
   return (

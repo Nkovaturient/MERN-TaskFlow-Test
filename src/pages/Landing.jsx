@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useAuth } from "../contexts/AuthContext";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [activeFAQ, setActiveFAQ] = useState(null);
 
   const toggleFAQ = (index) => {
@@ -15,6 +17,20 @@ const Landing = () => {
       top: 0,
       behavior: "smooth",
     });
+  };
+
+  const handleDashboardAccess = () => {
+    const userRole = localStorage.getItem("userRole");
+    const dashboardPath = userRole === "admin" ? "/admin/dashboard" : "/user/dashboard";
+    navigate(dashboardPath);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userId");
+    localStorage.removeItem("email");
+    navigate("/login");
   };
 
 
@@ -60,7 +76,7 @@ const Landing = () => {
 
       {/* Role Selection Section */}
       <div className="py-16 max-w-7xl mx-auto px-6">
-        <h2 className="text-4xl font-bold text-center mb-6 text-gray-800">Choose Your Role</h2>
+        <h2 className="text-4xl font-bold text-center mb-6 text-gray-800">Welcome to TaskFlow</h2>
         <div className="mt-8 grid gap-8 sm:grid-cols-2 max-w-4xl mx-auto">
           {["user", "admin"].map((role) => (
             <motion.div
@@ -76,16 +92,16 @@ const Landing = () => {
               </p>
               <div className="mt-6 space-y-4">
                 <button
-                  onClick={() => navigate("/signup", { state: { role } })}
+                  onClick={handleDashboardAccess}
                   className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-semibold rounded-md shadow-md hover:opacity-90 transition"
                 >
-                  Sign Up as {role.charAt(0).toUpperCase() + role.slice(1)}
+                  Access Dashboard
                 </button>
                 <button
-                  onClick={() => navigate("/login", { state: { role } })}
+                  onClick={handleLogout}
                   className="w-full py-3 border border-gray-400 text-gray-800 font-semibold rounded-md shadow-md hover:bg-gray-200 transition"
                 >
-                  Log In as {role.charAt(0).toUpperCase() + role.slice(1)}
+                  Logout
                 </button>
               </div>
             </motion.div>
