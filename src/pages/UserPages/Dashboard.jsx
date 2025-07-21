@@ -10,13 +10,20 @@ import Column from "./Column";
 import SortableItem from "./SortableItem";
 import notificationSound from "./notification.mp3";
 
+const FILTERS = [
+  { label: "All", value: "all" },
+  { label: "To Do", value: "todo" },
+  { label: "In Progress", value: "inprogress" },
+  { label: "Completed", value: "completed" },
+];
+
 const UserDashboard = () => {
   const [tasks, setTasks] = useState({
     "To Do": [],
     "In Progress": [],
     Completed: [],
   });
-
+  const [filter, setFilter] = useState("all");
   const [notes, setNotes] = useState(localStorage.getItem("notes") || "");
   const audioRef = useRef(new Audio(notificationSound));
 
@@ -104,6 +111,15 @@ const UserDashboard = () => {
     ],
   };
 
+  // Filtered columns logic
+  const getFilteredColumns = () => {
+    if (filter === "all") return Object.keys(tasks);
+    if (filter === "todo") return ["To Do"];
+    if (filter === "inprogress") return ["In Progress"];
+    if (filter === "completed") return ["Completed"];
+    return Object.keys(tasks);
+  };
+
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-blue-100 to-gray-100">
       <UserSidebar />
@@ -114,11 +130,28 @@ const UserDashboard = () => {
         </h2>
         <ToastContainer position="top-right" autoClose={5000} hideProgressBar />
 
+        {/* Task Filter Control */}
+        <div className="flex justify-center mb-4 gap-4">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`px-4 py-2 rounded-lg font-semibold border transition-colors duration-150 ${
+                filter === f.value
+                  ? "bg-blue-600 text-white border-blue-700 shadow"
+                  : "bg-white text-blue-700 border-blue-300 hover:bg-blue-50"
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
         {/* Kanban Board */}
         <div className="glassmorphism p-4 rounded-xl shadow-lg bg-gradient-to-br from-white/30 to-white/10 backdrop-blur-lg border border-white/20">
           <DndContext collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.keys(tasks).map((columnKey) => (
+              {getFilteredColumns().map((columnKey) => (
                 <Column key={columnKey} title={columnKey} id={columnKey} className="w-[280px]">
                   <SortableContext items={tasks[columnKey].map((task) => task.id)} strategy={verticalListSortingStrategy}>
                     {tasks[columnKey].map((task) => (
